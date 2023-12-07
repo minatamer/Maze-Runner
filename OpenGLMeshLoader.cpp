@@ -118,7 +118,7 @@ Vector3f Up(0, 1, 0);
 
 int cameraZoom = 0;
 int countdownTime = 300;  //5 minutes
-float playerX = 37 ;
+float playerX = -33 ;
 float playerY = 1.5 ;
 float playerZ = -35 ;
 float playerRotation = 0.0f;
@@ -126,8 +126,108 @@ float oldPlayerRotation = 0.0f;
 bool firstPerson = false;
 bool thirdPerson = false;
 bool toggleView = true;
-bool levelTwo = true;
+bool levelTwo = false;
 
+struct GrassWall {
+	int x, z, angle;
+};
+
+struct ArenaWall {
+	int x, z, angle;
+};
+
+
+GrassWall grassWallCoordinates[43] = {
+		{5, 35, 90},
+{-5, 35, 90},
+{-5, 25, 90},
+{0, 20, 0},
+{5, 15, 90},
+{10, 30, 0},
+{15, 25, 90},
+{15, 25, 90},
+{20, 20, 0},
+{10, 10, 0},
+{20, 10, 0},
+{25, 5, 90},
+{20, 0, 0},
+{10, 0, 0},
+{0, 0, 0},
+{-5, 5, 90},
+{15, -5, 90},
+{35, -10, 0},
+{30, -15, 90},
+{25, -20, 0},
+{5, -35, 90},
+{5, -25, 90},
+{5, -15, 90},
+{0, -10, 0},
+{-10, -10, 0},
+{-15, -15, 90},
+{-10, -20, 0},
+{-15, 35, 90},
+{-30, 25, 90},
+{-25, 20, 0},
+{-35, 20, 0},
+{-20, 15, 90},
+{-20, 5, 90},
+{-25, 0, 0},
+{-30, 5, 90},
+{-35, -10, 0},
+{-30, -25, 90},
+{-30, -35, 90},
+{30, 35, 90},
+{-25, -20, 0},
+{-20, -25, 90},
+{-15, -30, 0},
+{-10, -35, 90}
+};
+
+ArenaWall arenaWallCoordinates[43] = {
+	 {5, -35, 90},
+	 {-5, -35, 90},
+	 {-5, -25, 90},
+	 {0, -20, 0},
+	 {5, -15, 90},
+	 {10, -30, 0},
+	 {15, -25, 90},
+	 {15, -25, 90},
+	 {20, -20, 0},
+	 {10, -10, 0},
+	 {20, -10, 0},
+	 {25, -5, 90},
+	 {20, 0, 0},
+	 {10, 0, 0},
+	 {0, 0, 0},
+	 {-5, -5, 90},
+	 {15, 5, 90},
+	 {35, 10, 0},
+	 {30, 15, 90},
+	 {25, 20, 0},
+	 {5, 35, 90},
+	 {5, 25, 90},
+	 {5, 15, 90},
+	 {0, 10, 0},
+	 {-10, 10, 0},
+	 {-15, 15, 90},
+	 {-10, 20, 0},
+	 {-15, -35, 90},
+	 {-30, -25, 90},
+	 {-25, -20, 0},
+	 {-35, -20, 0},
+	 {-20, -15, 90},
+	 {-20, -5, 90},
+	 {-25, 0, 0},
+	 {-30, -5, 90},
+	 {-35, 10, 0},
+	 {-30, 25, 90},
+	 {-30, 35, 90},
+	 {30, -35, 90},
+	 {-25, 20, 0},
+	 {-20, 25, 90},
+	 {-15, 30, 0},
+	 {-10, 35, 90}
+};
 
 // Model Variables
 Model_3DS model_house;
@@ -135,10 +235,12 @@ Model_3DS model_tree;
 Model_3DS model_table;
 Model_3DS model_human;
 Model_3DS model_concreteWall;
+Model_3DS model_grassWall;
 
 // Textures
 GLTexture tex_ground;
 GLTexture tex_concrete;
+GLTexture tex_grass;
 
 //=======================================================================
 // Lighting Configuration Function
@@ -239,7 +341,7 @@ void RenderGround()
 
 	glEnable(GL_TEXTURE_2D);	// Enable 2D texturing
 
-	glBindTexture(GL_TEXTURE_2D, tex_ground.texture[0]);	// Bind the ground texture
+	glBindTexture(GL_TEXTURE_2D, tex_grass.texture[0]);	// Bind the ground texture
 
 	glPushMatrix();
 	glBegin(GL_QUADS);
@@ -341,6 +443,16 @@ void arenaWall(float x, float z , float angle) {
 	glPopMatrix();
 }
 
+void grassWall(float x, float z, float angle) {
+	glPushMatrix();
+	glTranslatef(x, 0, z);
+	glRotatef(angle, 0, 1, 0);
+
+	glScalef(2, 0.8, 0.3);
+	model_grassWall.Draw();
+	glPopMatrix();
+}
+
 //=======================================================================
 // Display Function
 //=======================================================================
@@ -401,7 +513,7 @@ void myDisplay(void)
 		model_concreteWall.Draw();
 		glPopMatrix();
 
-		arenaWall(5, -35, 90);
+		/*arenaWall(5, -35, 90);
 		arenaWall(-5, -35, 90);
 		arenaWall(-5, -25, 90);
 		arenaWall(0, -20, 0);
@@ -455,7 +567,12 @@ void myDisplay(void)
 		arenaWall(-25, 20, 0);
 		arenaWall(-20, 25, 90);
 		arenaWall(-15, 30, 0);
-		arenaWall(-10, 35, 90);
+		arenaWall(-10, 35, 90);*/
+
+		for (int i = 0; i < 43; ++i) {
+			arenaWall(arenaWallCoordinates[i].x, arenaWallCoordinates[i].z, arenaWallCoordinates[i].angle);
+		}
+
 
 		glPushMatrix();
 		glTranslatef(playerX, playerY, playerZ);
@@ -464,21 +581,54 @@ void myDisplay(void)
 		glPopMatrix();
 	}
 	else {
+		printf("X: %f and Z: %f", playerX, playerZ);
 		// Draw Ground
 		RenderGround();
 		
+		glPushMatrix();
+		glTranslatef(0, 0, 0);
+		glRotatef(90, 0, 1, 0);
+		glTranslatef(0, 0, 41);
+		glScalef(17, 0.8, 0.3);
+		model_grassWall.Draw();
+		glPopMatrix();
 
-		// Draw Tree Model
-		/*glPushMatrix();
-		glTranslatef(10, 0, 0);
-		glScalef(0.7, 0.7, 0.7);
-		model_tree.Draw();
-		glPopMatrix();*/
+		glPushMatrix();
+		glTranslatef(0, 0, 0);
+		glRotatef(90, 0, 1, 0);
+		glRotatef(90, 0, 1, 0);
+		glTranslatef(0, 0, 41);
+		glScalef(17, 0.8, 0.3);
+		model_grassWall.Draw();
+		glPopMatrix();
+
+
+		glPushMatrix();
+		glTranslatef(0, 0, 0);
+		glRotatef(90, 0, 1, 0);
+		glRotatef(90, 0, 1, 0);
+		glRotatef(90, 0, 1, 0);
+		glTranslatef(0, 0, 41);
+		glScalef(17, 0.8, 0.3);
+		model_grassWall.Draw();
+		glPopMatrix();
+
+
+		glPushMatrix();
+		glTranslatef(0, 0, 0);
+		glRotatef(90, 0, 1, 0);
+		glRotatef(90, 0, 1, 0);
+		glRotatef(90, 0, 1, 0);
+		glRotatef(90, 0, 1, 0);
+		glTranslatef(0, 0, 41);
+		glScalef(17, 0.8, 0.3);
+		model_grassWall.Draw();
+		glPopMatrix();
 
 		// Draw house Model
 		glPushMatrix();
 		glRotatef(90.f, 1, 0, 0);
-		glTranslatef(35, -38, 0);
+		glTranslatef(-35, -38, 0);
 		model_house.Draw();
 		glPopMatrix();
 
@@ -509,6 +659,71 @@ void myDisplay(void)
 
 
 		glPopMatrix();
+
+		/*grassWall(5, 35, 90);
+		grassWall(-5, 35, 90);
+		grassWall(-5, 25, 90);
+		grassWall(0, 20, 0);
+		grassWall(5, 15, 90);
+		grassWall(10, 30, 0);
+		grassWall(15, 25, 90);
+		grassWall(15, 25, 90);
+		grassWall(20, 20, 0);
+		grassWall(10, 10, 0);
+		grassWall(20, 10, 0);
+
+		grassWall(25, 5, 90);
+
+		grassWall(20, 0, 0);
+		grassWall(10, 0, 0);
+		grassWall(0, 0, 0);
+
+		grassWall(-5, 5, 90);
+
+		grassWall(15, -5, 90);
+		grassWall(35, -10, 0);
+
+		grassWall(30, -15, 90);
+		grassWall(25, -20, 0);
+
+		grassWall(5, -35, 90);
+		grassWall(5, -25, 90);
+		grassWall(5, -15, 90);
+
+		grassWall(0, -10, 0);
+		grassWall(-10, -10, 0);
+
+		grassWall(-15, -15, 90);
+		grassWall(-10, -20, 0);
+
+		grassWall(-15, 35, 90);
+		grassWall(-30, 25, 90);
+		grassWall(-25, 20, 0);
+		grassWall(-35, 20, 0);
+
+		grassWall(-20, 15, 90);
+		grassWall(-20, 5, 90);
+		grassWall(-25, 0, 0);
+		grassWall(-30, 5, 90);
+
+		grassWall(-35, -10, 0);
+		grassWall(-30, -25, 90);
+		grassWall(-30, -35, 90);
+		grassWall(30, 35, 90);
+
+		grassWall(-25, -20, 0);
+		grassWall(-20, -25, 90);
+		grassWall(-15, -30, 0);
+		grassWall(-10, -35, 90);*/
+
+
+
+		for (int i = 0; i < 43; ++i) {
+			grassWall(grassWallCoordinates[i].x, grassWallCoordinates[i].z, grassWallCoordinates[i].angle);
+		}
+
+
+
 	}
 
 	
@@ -782,10 +997,12 @@ void LoadAssets()
 	model_table.Load("Models/table/table.3ds");
 	model_human.Load("Models/human/human2.3ds");
 	model_concreteWall.Load("Models/rock/stone.3ds");
+	model_grassWall.Load("Models/grass/grass.3ds");
 
 	// Loading texture files
 	tex_ground.Load("Textures/ground.bmp");
 	tex_concrete.Load("Textures/Concrite.bmp");
+	tex_grass.Load("Textures/texture-grass.bmp");
 	loadBMP(&tex, "Textures/blu-sky-3.bmp", true);
 }
 
