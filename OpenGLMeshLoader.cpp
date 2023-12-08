@@ -5,13 +5,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <mmsystem.h>
+#include <SFML/Audio.hpp>
 #include <glut.h>
 
 int WIDTH = 1280;
 int HEIGHT = 720;
 
 GLuint tex;
-char title[] = "3D Model Loader Sample";
+char title[] = "Maze Runner";
 
 // 3D Projection Options
 GLdouble fovy = 45.0;
@@ -117,6 +121,7 @@ Vector3f At(0, 0, 0);
 Vector3f Up(0, 1, 0);
 
 int cameraZoom = 0;
+int score = 0;
 int countdownTime = 300;  //5 minutes
 float playerX = -33 ;
 float playerY = 1.5 ;
@@ -127,6 +132,68 @@ bool firstPerson = false;
 bool thirdPerson = false;
 bool toggleView = true;
 bool levelTwo = false;
+
+int chestOneX = 25;
+int chestOneZ = 5;
+int chestTwoX = -18;
+int chestTwoZ = 20;
+
+int crystalOneX = 33;
+int crystalOneZ = 14;
+int crystalTwoX = 22;
+int crystalTwoZ = -15;
+
+float boulderOneX = 12;
+int boulderOneZ = -5;
+float boulderTwoX = 10;
+int boulderTwoZ = 15;
+
+int bladeOneX = 10;
+int bladeOneZ = 10;
+int bladeTwoX = 25;
+int bladeTwoZ = -15;
+
+bool stumble = false;
+bool getUp = true;
+float stumbleRotation = 0.0f;
+
+float bladeRotation = 0.0f;
+
+bool bolderOneMove = false;
+bool bolderTwoMove = false;
+float bolderOneRotation = 0.0f;
+float bolderTwoRotation = 0.0f;
+
+float portalX = 0.f;
+float portalZ = 37.f;
+
+float GateX = -2.f;
+float GateZ = 35.f;
+
+bool gameWin = false;
+float playerWinRotation = 0.f;
+
+float lightPositionY = 0.f;
+
+
+//Sound
+sf::Sound gameMusicSound;
+sf::SoundBuffer gameMusicBuffer;
+
+sf::Sound collectableSound;
+sf::SoundBuffer collectableSoundBuffer;
+
+sf::Sound obstacleSound;
+sf::SoundBuffer obstacleSoundBuffer;
+
+sf::Sound gameEndSound;
+sf::SoundBuffer gameEndSoundBuffer;
+
+sf::Sound gameWinSound;
+sf::SoundBuffer gameWinSoundBuffer;
+
+sf::Sound portalSound;
+sf::SoundBuffer portalSoundBuffer;
 
 struct GrassWall {
 	int x, z, angle;
@@ -236,6 +303,12 @@ Model_3DS model_table;
 Model_3DS model_human;
 Model_3DS model_concreteWall;
 Model_3DS model_grassWall;
+Model_3DS model_boulder;
+Model_3DS model_crystal;
+Model_3DS model_chest;
+Model_3DS model_blade;
+Model_3DS model_portal;
+Model_3DS model_gate;
 
 // Textures
 GLTexture tex_ground;
@@ -255,7 +328,7 @@ void InitLightSource()
 	glEnable(GL_LIGHT0);
 
 	// Define Light source 0 ambient light
-	GLfloat ambient[] = { 0.1f, 0.1f, 0.1, 1.0f };
+	GLfloat ambient[] = { 0.5f, 0.5f, 0.5f, 1.0f };
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
 
 	// Define Light source 0 diffuse light
@@ -269,6 +342,22 @@ void InitLightSource()
 	// Finally, define light source 0 position in World Space
 	GLfloat light_position[] = { 0.0f, 10.0f, 0.0f, 1.0f };
 	glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+}
+
+void setupLights() {
+	GLfloat ambient[] = { 0.7f, 0.7f, 0.7, 1.0f };
+	GLfloat diffuse[] = { 0.6f, 0.6f, 0.6, 1.0f };
+	GLfloat specular[] = { 1.0f, 1.0f, 1.0, 1.0f };
+	GLfloat shininess[] = { 0 };
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambient);
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
+	glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+	glMaterialfv(GL_FRONT, GL_SHININESS, shininess);
+
+	GLfloat lightIntensity[] = { 0.7f, 0.7f, 1, 1.0f };
+	GLfloat lightPosition[] = { -7.0f, 6.0f, 3.0f, 0.0f };
+	glLightfv(GL_LIGHT0, GL_POSITION, lightIntensity);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, lightIntensity);
 }
 
 //=======================================================================
@@ -453,22 +542,142 @@ void grassWall(float x, float z, float angle) {
 	glPopMatrix();
 }
 
+void print(int x, int y, int z, char* string)
+{
+	int len, i;
+	glRasterPos3f(x, y, z);
+	len = (int)strlen(string);
+	for (i = 0; i < len; i++) {
+		glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, string[i]);
+	}
+}
+
+void drawText(const std::string& text, int x, int y, void* font) {
+	glRasterPos2i(x, y);
+
+	for (char c : text) {
+		glutBitmapCharacter(font, c);
+	}
+}
+
 //=======================================================================
 // Display Function
 //=======================================================================
 void myDisplay(void)
 {
+	//setupLights();
 	setupCamera();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	GLfloat lightIntensity[] = { 0.7, 0.7, 0.7, 1.0f };
-	GLfloat lightPosition[] = { 0.0f, 100.0f, 0.0f, 0.0f };
+	GLfloat lightPosition[] = { 100.f, -100.f, 100.f, 0.0f };
 	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 	glLightfv(GL_LIGHT0, GL_AMBIENT, lightIntensity);
 
-	if (levelTwo) {
+	if (gameWin) {
+		//put third person view
+		camera.eye = Vector3f(playerX, playerY , playerZ - 4);
+		camera.center = Vector3f(playerX, playerY , playerZ + 20);
+		thirdPerson = true;
+		firstPerson = false;
 
-		printf("X: %f and Z: %f", playerX, playerZ);
+		RenderConcreteGround();
+
+
+		glPushMatrix();
+		glTranslatef(0, 0, 0);
+		glRotatef(90, 0, 1, 0);
+		glTranslatef(0, 0, 41);
+		glScalef(17, 0.8, 0.3);
+		model_concreteWall.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(0, 0, 0);
+		glRotatef(90, 0, 1, 0);
+		glRotatef(90, 0, 1, 0);
+		glTranslatef(0, 0, 41);
+		glScalef(17, 0.8, 0.3);
+		model_concreteWall.Draw();
+		glPopMatrix();
+
+
+		glPushMatrix();
+		glTranslatef(0, 0, 0);
+		glRotatef(90, 0, 1, 0);
+		glRotatef(90, 0, 1, 0);
+		glRotatef(90, 0, 1, 0);
+		glTranslatef(0, 0, 41);
+		glScalef(17, 0.8, 0.3);
+		model_concreteWall.Draw();
+		glPopMatrix();
+
+
+		glPushMatrix();
+		glTranslatef(0, 0, 0);
+		glRotatef(90, 0, 1, 0);
+		glRotatef(90, 0, 1, 0);
+		glRotatef(90, 0, 1, 0);
+		glRotatef(90, 0, 1, 0);
+		glTranslatef(0, 0, 41);
+		glScalef(17, 0.8, 0.3);
+		model_concreteWall.Draw();
+		glPopMatrix();
+
+		for (int i = 0; i < 43; ++i) {
+			arenaWall(arenaWallCoordinates[i].x, arenaWallCoordinates[i].z, arenaWallCoordinates[i].angle);
+		}
+
+		glPushMatrix();
+		glTranslatef(playerX, playerY, playerZ);
+		glRotatef(playerWinRotation, 0.0, 1.0, 0.0);
+		glRotatef(stumbleRotation, 1.0, 0.0, 0.0);
+		model_human.Draw();
+		glPopMatrix();
+
+
+		glPushMatrix();
+		glTranslatef(chestOneX, 1, chestOneZ);
+		glScalef(0.01, 0.01, 0.01);
+		glRotatef(90, 1, 0, 0);
+		glRotatef(180, 0, 0, 1);
+		model_chest.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(chestTwoX, 1, chestTwoZ);
+		glScalef(0.01, 0.01, 0.01);
+		glRotatef(90, 1, 0, 0);
+		glRotatef(180, 0, 0, 1);
+		model_chest.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(bladeOneX, 1, bladeOneZ);
+		glScalef(0.3, 0.3, 0.3);
+		glRotatef(90, 0, 1, 0);
+		glRotatef(bladeRotation, 0, 1, 0);
+		model_blade.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(bladeTwoX, 1, bladeTwoZ);
+		glScalef(0.3, 0.3, 0.3);
+		glRotatef(bladeRotation, 0, 1, 0);
+		model_blade.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(3.5, 0, 36);
+		glScalef(0.03, 0.02, 0.03);
+		glRotatef(90, 0, 1, 0);
+		model_gate.Draw();
+		glPopMatrix();
+	}
+
+	else if (levelTwo) {
+
+		//printf("X: %f and Z: %f", playerX, playerZ);
 		
 		RenderConcreteGround();
 
@@ -513,76 +722,77 @@ void myDisplay(void)
 		model_concreteWall.Draw();
 		glPopMatrix();
 
-		/*arenaWall(5, -35, 90);
-		arenaWall(-5, -35, 90);
-		arenaWall(-5, -25, 90);
-		arenaWall(0, -20, 0);
-		arenaWall(5, -15, 90);
-		arenaWall(10, -30, 0);
-		arenaWall(15, -25, 90);
-		arenaWall(15, -25, 90);
-		arenaWall(20, -20, 0);
-		arenaWall(10, -10, 0);
-		arenaWall(20, -10, 0);
-
-		arenaWall(25, -5, 90);
-
-		arenaWall(20, 0, 0);
-		arenaWall(10, 0, 0);
-		arenaWall(0, 0, 0);
-
-		arenaWall(-5, -5, 90);
-
-		arenaWall(15, 5, 90);
-		arenaWall(35, 10, 0);
-
-		arenaWall(30, 15, 90);
-		arenaWall(25, 20, 0);
-
-		arenaWall(5, 35, 90);
-		arenaWall(5, 25, 90);
-		arenaWall(5, 15, 90);
-
-		arenaWall(0, 10, 0);
-		arenaWall(-10, 10, 0);
-
-		arenaWall(-15, 15, 90);
-		arenaWall(-10, 20, 0);
-
-		arenaWall(-15, -35, 90);
-		arenaWall(-30, -25, 90);
-		arenaWall(-25, -20, 0);
-		arenaWall(-35, -20, 0);
-
-		arenaWall(-20, -15, 90);
-		arenaWall(-20, -5, 90);
-		arenaWall(-25, 0, 0);
-		arenaWall(-30, -5, 90);
-
-		arenaWall(-35, 10, 0);
-		arenaWall(-30, 25, 90);
-		arenaWall(-30, 35, 90);
-		arenaWall(30, -35, 90);
-
-		arenaWall(-25, 20, 0);
-		arenaWall(-20, 25, 90);
-		arenaWall(-15, 30, 0);
-		arenaWall(-10, 35, 90);*/
-
 		for (int i = 0; i < 43; ++i) {
 			arenaWall(arenaWallCoordinates[i].x, arenaWallCoordinates[i].z, arenaWallCoordinates[i].angle);
 		}
 
-
 		glPushMatrix();
 		glTranslatef(playerX, playerY, playerZ);
 		glRotatef(playerRotation, 0.0, 1.0, 0.0);
+		glRotatef(stumbleRotation, 1.0, 0.0, 0.0);
 		model_human.Draw();
 		glPopMatrix();
+
+
+		glPushMatrix();
+		glTranslatef(chestOneX, 1, chestOneZ);
+		glScalef(0.01, 0.01, 0.01);
+		glRotatef(90, 1, 0, 0);
+		glRotatef(180, 0, 0, 1);
+		model_chest.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(chestTwoX, 1, chestTwoZ);
+		glScalef(0.01, 0.01, 0.01);
+		glRotatef(90, 1, 0, 0);
+		glRotatef(180, 0, 0, 1);
+		model_chest.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(bladeOneX, 1, bladeOneZ);
+		glScalef(0.3, 0.3, 0.3);
+		glRotatef(90, 0, 1, 0);
+		glRotatef(bladeRotation, 0, 1, 0);
+		model_blade.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(bladeTwoX, 1, bladeTwoZ);
+		glScalef(0.3, 0.3, 0.3);
+		glRotatef(bladeRotation, 0, 1, 0);
+		model_blade.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(3.5, 0, 36);
+		glScalef(0.03, 0.02, 0.03);
+		glRotatef(90, 0, 1, 0);
+		model_gate.Draw();
+		glPopMatrix();
+
+
+		std::stringstream scoreText;
+		scoreText << "Score: " << score;
+		drawText(scoreText.str(), 10, glutGet(GLUT_WINDOW_HEIGHT) - 30, GLUT_BITMAP_HELVETICA_18);
 	}
 	else {
-		printf("X: %f and Z: %f", playerX, playerZ);
 		// Draw Ground
+		std::stringstream scoreText;
+		scoreText << "Score: " << score;
+		drawText(scoreText.str(), 10, glutGet(GLUT_WINDOW_HEIGHT) - 30, GLUT_BITMAP_HELVETICA_18);
+
+		char scoreString[50];
+		sprintf(scoreString, "Score: %d", score);
+
+		// Draw the score te4
+
+		glRasterPos2i(100, 100);
+		for (char* c = scoreString; *c != '\0'; ++c) {
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, *c);
+		}
+
 		RenderGround();
 		
 		glPushMatrix();
@@ -632,15 +842,10 @@ void myDisplay(void)
 		model_house.Draw();
 		glPopMatrix();
 
-		/*glPushMatrix();
-		glTranslatef(10, 0, 0);
-		glScalef(0.7, 0.7, 0.7);
-		model_table.Draw();
-		glPopMatrix();*/
-
 		glPushMatrix();
 		glTranslatef(playerX, playerY, playerZ);
 		glRotatef(playerRotation, 0.0, 1.0, 0.0);
+		glRotatef(stumbleRotation, 1.0, 0.0, 0.0);
 		model_human.Draw();
 		glPopMatrix();
 
@@ -660,73 +865,46 @@ void myDisplay(void)
 
 		glPopMatrix();
 
-		/*grassWall(5, 35, 90);
-		grassWall(-5, 35, 90);
-		grassWall(-5, 25, 90);
-		grassWall(0, 20, 0);
-		grassWall(5, 15, 90);
-		grassWall(10, 30, 0);
-		grassWall(15, 25, 90);
-		grassWall(15, 25, 90);
-		grassWall(20, 20, 0);
-		grassWall(10, 10, 0);
-		grassWall(20, 10, 0);
-
-		grassWall(25, 5, 90);
-
-		grassWall(20, 0, 0);
-		grassWall(10, 0, 0);
-		grassWall(0, 0, 0);
-
-		grassWall(-5, 5, 90);
-
-		grassWall(15, -5, 90);
-		grassWall(35, -10, 0);
-
-		grassWall(30, -15, 90);
-		grassWall(25, -20, 0);
-
-		grassWall(5, -35, 90);
-		grassWall(5, -25, 90);
-		grassWall(5, -15, 90);
-
-		grassWall(0, -10, 0);
-		grassWall(-10, -10, 0);
-
-		grassWall(-15, -15, 90);
-		grassWall(-10, -20, 0);
-
-		grassWall(-15, 35, 90);
-		grassWall(-30, 25, 90);
-		grassWall(-25, 20, 0);
-		grassWall(-35, 20, 0);
-
-		grassWall(-20, 15, 90);
-		grassWall(-20, 5, 90);
-		grassWall(-25, 0, 0);
-		grassWall(-30, 5, 90);
-
-		grassWall(-35, -10, 0);
-		grassWall(-30, -25, 90);
-		grassWall(-30, -35, 90);
-		grassWall(30, 35, 90);
-
-		grassWall(-25, -20, 0);
-		grassWall(-20, -25, 90);
-		grassWall(-15, -30, 0);
-		grassWall(-10, -35, 90);*/
-
-
-
 		for (int i = 0; i < 43; ++i) {
 			grassWall(grassWallCoordinates[i].x, grassWallCoordinates[i].z, grassWallCoordinates[i].angle);
 		}
 
 
+		glPushMatrix();
+		glTranslatef(boulderOneX, 0, boulderOneZ);
+		glScalef(5,5, 5);
+		model_boulder.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(boulderTwoX, 0, boulderTwoZ);
+		glScalef(5, 5, 5);
+		model_boulder.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(crystalOneX, 1, crystalOneZ);
+		glScalef(0.4, 1.5, 1.5);
+		model_crystal.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(crystalTwoX, 1, crystalTwoZ);
+		glScalef(0.4, 1.5, 1.5);
+		model_crystal.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(0, -6, 37);
+		glScalef(0.01, 0.01, 0.01);
+		glRotatef(90, 0, 0, 1);
+		model_portal.Draw();
+		glPopMatrix();
+
 
 	}
 
-	
+
 
 
 
@@ -736,6 +914,160 @@ void myDisplay(void)
 //=======================================================================
 // Keyboard Function
 //=======================================================================
+
+bool checkGrassCollision(const GrassWall& wall) {
+	// Check collision based on the orientation of the wall
+	if (wall.angle == 90) {
+		// Wall is vertical (angle = 90)
+		if (playerX > wall.x - 1.2 && playerX < wall.x + 1.2 && playerZ > wall.z - 5.5 && playerZ < wall.z + 5.5)
+			return true;
+		else
+			return false;
+
+	}
+	else {
+		// Wall is horizontal (angle = 0)
+		if (playerZ > wall.z - 1.2 && playerZ  < wall.z + 1.2 && playerX > wall.x - 5.5 && playerX < wall.x + 5.5)
+			return true;
+		else
+			return false;
+	}
+
+}
+
+bool checkArenaCollision(const ArenaWall& wall) {
+	// Check collision based on the orientation of the wall
+	if (wall.angle == 90) {
+		// Wall is vertical (angle = 90)
+		if (playerX > wall.x - 1.2 && playerX < wall.x + 1.2 && playerZ > wall.z - 5.5 && playerZ < wall.z + 5.5)
+			return true;
+		else
+			return false;
+
+	}
+	else {
+		// Wall is horizontal (angle = 0)
+		if (playerZ > wall.z - 1.2 && playerZ  < wall.z + 1.2 && playerX > wall.x - 5.5 && playerX < wall.x + 5.5)
+			return true;
+		else
+			return false;
+	}
+
+}
+
+bool checkAllWallCollisions(bool levelTwo) {
+
+	if (levelTwo) {
+		for (const auto& wall : arenaWallCoordinates) {
+			if (checkArenaCollision(wall)) {
+				obstacleSound.play();
+				return true;
+			}
+		}
+		return false;
+	}
+
+	for (const auto& wall : grassWallCoordinates) {
+		if (checkGrassCollision(wall)) {
+			obstacleSound.play();
+			return true;
+		}
+	}
+	return false;
+}
+
+void checkCollectableCollision(bool levelTwo) {
+	if (levelTwo) { //TREASURE CHEST COORDINATES ARE {25,5} AND {-18,20}
+		if (playerX > 25 - 1 && playerX < 25 + 1 && playerZ > 5 - 0.5 && playerZ < 5 + 0.5) {
+			chestOneX = -100;
+			chestOneZ = -100;
+			collectableSound.play();
+		}
+		if (playerX > -18 - 1 && playerX < -18 + 1 && playerZ > 20 - 0.5 && playerZ < 20 + 0.5){
+			chestTwoX = -100;
+			chestTwoZ = -100;
+			collectableSound.play();
+
+		}
+	}
+	else { //CRYSTAL ORB COORDINATES ARE {33,14} AND {22,-15}
+		if (playerX > 33 - 1 && playerX < 33 + 1 && playerZ > 14 - 0.5 && playerZ < 14 + 0.5) {
+			crystalOneX = -100;
+			crystalOneZ = -100;
+			collectableSound.play();
+		}
+		if (playerX > 22 - 1 && playerX < 22 + 1 && playerZ > -15 - 0.5 && playerZ < -15 + 0.5) {
+			crystalTwoX = -100;
+			crystalTwoZ = -100;
+			collectableSound.play();
+		}
+
+	}
+}
+
+
+void checkObstacleCollision(bool levelTwo) {
+	if (levelTwo) { //Blade COORDINATES 
+		if (playerX > bladeOneX - 2 && playerX < bladeOneX + 2 && playerZ > bladeOneZ - 2 && playerZ < bladeOneZ + 2) {
+			stumble = true;
+			getUp = false;
+			obstacleSound.play();
+		}
+		if (playerX > bladeTwoX - 2 && playerX < bladeTwoX + 2 && playerZ > bladeTwoZ - 2 && playerZ < bladeTwoZ + 2) {
+			stumble = true;
+			getUp = false;
+			obstacleSound.play();
+		}
+	}
+	else { //Boulder COORDINATES 
+		if (playerX > boulderOneX - 2.5 && playerX < boulderOneX + 2.5 && playerZ > boulderOneZ - 2.5 && playerZ < boulderOneZ + 2.5) {
+			getUp = false;
+			stumble = true;
+			obstacleSound.play();
+		}
+		if (playerX > boulderTwoX - 2.5 && playerX < boulderTwoX + 2.5 && playerZ > boulderTwoZ - 2.5 && playerZ < boulderTwoZ + 2.5) {
+			getUp = false;
+			stumble = true;
+			obstacleSound.play();
+		}
+
+	}
+}
+
+void makeBoulderMove(bool levelTwo) {
+	if (!levelTwo) { //Boulder COORDINATES 
+		if (playerX > boulderOneX - 15 && playerX < boulderOneX + 15 && playerZ > boulderOneZ - 15 && playerZ < boulderOneZ + 15) {
+			bolderOneMove = true;
+		}
+		if (playerX > boulderTwoX - 15 && playerX < boulderTwoX + 15 && playerZ > boulderTwoZ - 15 && playerZ < boulderTwoZ + 15) {
+			bolderTwoMove = true;
+		}
+
+	}
+}
+
+void checkPortalCollision(bool ifLevelTwo) {
+	if (!ifLevelTwo) {
+		if (playerX > portalX - 1 && playerX < portalX + 1 && playerZ > portalZ - 1 && playerZ < portalZ + 1) {
+			playerX = 0.8;
+			playerZ = -35.f;
+			levelTwo = true;
+			portalSound.play();
+			glutPostRedisplay();
+		}
+	}
+}
+
+void checkGateCollision() {
+	if (levelTwo) {
+		if (playerX > GateX - 2 && playerX < GateX + 2 && playerZ > GateZ - 3 && playerZ < GateZ + 3) {
+			gameWin = true;
+			glutPostRedisplay();
+		}
+	}
+}
+
+
 void myKeyboard(unsigned char key, int x, int y) {
 	float d = 1;
 
@@ -802,7 +1134,11 @@ void myKeyboard(unsigned char key, int x, int y) {
 
 		//PLAYER MOVEMENT
 	case 'w': //move forward
-		if (playerZ + 0.2 < 40) {
+		if (playerZ + 0.2 < 40 && !stumble) {
+			if (checkAllWallCollisions(levelTwo) == true) {
+				playerZ -= 0.2;
+				break;
+			}
 			playerZ += 0.2;
 			playerRotation = 0;
 			if (firstPerson) {
@@ -818,7 +1154,11 @@ void myKeyboard(unsigned char key, int x, int y) {
 		}
 		break;
 	case 's': //move backward
-		if (playerZ - 0.2 > -40) {
+		if (playerZ - 0.2 > -40 && !stumble) {
+			if (checkAllWallCollisions(levelTwo) == true) {
+				playerZ += 0.2;
+				break;
+			}
 			playerZ -= 0.2;
 			playerRotation = 180;
 			if (firstPerson) {
@@ -834,7 +1174,11 @@ void myKeyboard(unsigned char key, int x, int y) {
 		}
 		break;
 	case 'a': //move left
-		if (playerX + 0.2 < 40) {
+		if (playerX + 0.2 < 40 && !stumble) {
+			if (checkAllWallCollisions(levelTwo) == true) {
+				playerX -= 0.2;
+				break;
+			}
 			playerX += 0.2;
 			playerRotation = 90;
 			if (firstPerson) {
@@ -850,7 +1194,11 @@ void myKeyboard(unsigned char key, int x, int y) {
 		}
 		break;
 	case 'd': //move right
-		if (playerX - 0.2 > -40) {
+		if (playerX - 0.2 > -40 && !stumble) {
+			if (checkAllWallCollisions(levelTwo) == true) {
+				playerX += 0.2;
+				break;
+			}
 			playerX -= 0.2;
 			playerRotation = -90;
 			if (firstPerson) {
@@ -870,6 +1218,12 @@ void myKeyboard(unsigned char key, int x, int y) {
 		exit(EXIT_SUCCESS);
 	}
 
+	printf("X: %f and Z: %f", playerX, playerZ);
+	checkPortalCollision(levelTwo);
+	makeBoulderMove(levelTwo);
+	checkObstacleCollision(levelTwo);
+	checkCollectableCollision(levelTwo);
+	checkGateCollision();
 	glutPostRedisplay();
 }
 
@@ -905,15 +1259,15 @@ void myMotion(int x, int y)
 	if (firstPerson || thirdPerson)
 	{
 		if (x > 640) {
-			camera.rotateY(0.3);
+			camera.rotateY(0.5);
 		}
 		else {
-			camera.rotateY(-0.3);
+			camera.rotateY(-0.5);
 		}
 	}
 	glLoadIdentity();	//Clear Model_View Matrix
-	GLfloat light_position[] = { 0.0f, 10.0f, 0.0f, 1.0f };
-	glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+	//GLfloat light_position[] = { 0.0f, 10.0f, 0.0f, 1.0f };
+	//glLightfv(GL_LIGHT0, GL_POSITION, light_position);
 
 	glutPostRedisplay();	//Re-draw scene 
 }
@@ -998,6 +1352,12 @@ void LoadAssets()
 	model_human.Load("Models/human/human2.3ds");
 	model_concreteWall.Load("Models/rock/stone.3ds");
 	model_grassWall.Load("Models/grass/grass.3ds");
+	model_boulder.Load("Models/boulder/rock.3ds");
+	model_crystal.Load("Models/crystal/rock.3ds");
+	model_chest.Load("Models/chest/chest.3ds");
+	model_portal.Load("Models/portal/StarGate.3ds");
+	model_blade.Load("Models/blade/shrknlw.3ds");
+	model_gate.Load("Models/gate/Gate.3ds");
 
 	// Loading texture files
 	tex_ground.Load("Textures/ground.bmp");
@@ -1006,7 +1366,41 @@ void LoadAssets()
 	loadBMP(&tex, "Textures/blu-sky-3.bmp", true);
 }
 
+void Animation() {
+	if (stumble) {
+		if (!getUp && stumbleRotation > -90.f) {
+			stumbleRotation -= 1.f;
+			playerY -= 0.01;
+		}
+		else {
+			getUp = true;
+			stumbleRotation += 1.f;
+			playerY += 0.01;
+			if (stumbleRotation < 0.f) {
+				stumbleRotation = 0.0f;
+				playerY = 1.5f;
+				stumble = false;
+			}
+		}
+	}
 
+	if (bolderOneMove) {
+		boulderOneX -= 0.1f;
+	}
+
+	if (bolderTwoMove) {
+		boulderTwoX += 0.1f;
+	}
+	if (gameWin) {
+		if (playerY < 3.f) {
+			playerY += 0.005f;
+			playerWinRotation += 5.f;
+		}
+
+	}
+	bladeRotation += 6.f;
+	glutPostRedisplay();
+}
 
 //=======================================================================
 // Main Function
@@ -1033,10 +1427,11 @@ void main(int argc, char** argv)
 
 	glutMouseFunc(myMouse);
 
-	//glutReshapeFunc(myReshape);
+	glutReshapeFunc(myReshape);
 
 	glutTimerFunc(0, timer, 0);
 
+	glutIdleFunc(Animation);
 	myInit();
 
 	LoadAssets();
@@ -1052,6 +1447,34 @@ void main(int argc, char** argv)
 		playerX = 0.8;
 		playerZ = -35.f;
 	}
+
+
+	//BONUS
+	gameMusicBuffer.loadFromFile("game-music.wav");
+	gameMusicSound.setBuffer(gameMusicBuffer);
+	gameMusicSound.setVolume(100.0f);
+	gameMusicSound.setLoop(true);
+	gameMusicSound.play();
+
+	collectableSoundBuffer.loadFromFile("collectable.wav");
+	collectableSound.setBuffer(collectableSoundBuffer);
+	collectableSound.setVolume(100.0f);
+
+	obstacleSoundBuffer.loadFromFile("obstacle.wav");
+	obstacleSound.setBuffer(obstacleSoundBuffer);
+	obstacleSound.setVolume(100.0f);
+
+	gameWinSoundBuffer.loadFromFile("game-win.wav");
+	gameWinSound.setBuffer(gameWinSoundBuffer);
+	gameWinSound.setVolume(100.0f);
+
+	portalSoundBuffer.loadFromFile("portal.wav");
+	portalSound.setBuffer(portalSoundBuffer);
+	portalSound.setVolume(100.0f);
+
+	/*gameEndSoundBuffer.loadFromFile("game-end.wav");
+	gameEndSound.setBuffer(gameEndSoundBuffer);
+	gameEndSound.setVolume(100.0f);*/
 
 	glutMainLoop();
 }
