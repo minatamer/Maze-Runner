@@ -1,5 +1,3 @@
 # Maze-Runner
-put Concrite.bmp in the textures folder <br/>
-put rock folder in the models folder <br/>
-maze reference doesnt need to be put anywhere  <br/>
-copy the code inside the cpp file and paste it inside the cpp file of the Lab 7 template folder
+A 3-D Game made with OpenGL where you Embark on an exciting adventure through two distinct maze environments filled with challenges and surprises. Navigate through intricate paths, avoid obstacles, collect valuable orbs, and reach the final exit to become the Maze Runner Champion.
+- Important note: to run you need the OpenGL VS Studio template.
